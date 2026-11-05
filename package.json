@@ -1,0 +1,13 @@
+{
+  "name": "gmail-assistant",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Gmail to Notion job application and subscription tracker, built on Google Apps Script.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
