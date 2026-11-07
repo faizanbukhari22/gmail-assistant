@@ -11,6 +11,7 @@
 
 const NOTION_VERSION = "2022-06-28";
 const MAX_RUN_MS = 5 * 60 * 1000;
+const SAVE_EVERY = 20; // progress is saved this often, so a cancelled run repeats at most this many messages
 const DAY_MS = 24 * 3600 * 1000;
 const CACHE_PREFIX = "sender:";
 
@@ -42,7 +43,11 @@ function processInbox() {
   const items = retryItems_(retries).concat(newMessages_(checkpoint));
   Logger.log(`${items.length} messages to process (${Object.keys(retries).length} retries).`);
 
-  let lastTs = checkpoint, aiCalls = 0, handled = 0;
+  let lastTs = checkpoint, aiCalls = 0, handled = 0, seen = 0;
+  const save = () => {
+    store.setProperty("LAST_MESSAGE_TS", String(lastTs));
+    store.setProperty("RETRY_IDS", JSON.stringify(retries));
+  };
   for (const item of items) {
     if (Date.now() - started > MAX_RUN_MS) { Logger.log("Time limit reached, the rest runs next time."); break; }
 
@@ -60,10 +65,10 @@ function processInbox() {
       handled++;
     }
     if (!item.retry) lastTs = Math.max(lastTs, email.ts);
+    if (++seen % SAVE_EVERY === 0) save();
   }
 
-  store.setProperty("LAST_MESSAGE_TS", String(lastTs));
-  store.setProperty("RETRY_IDS", JSON.stringify(retries));
+  save();
   Logger.log(`Done. ${handled} handled, ${aiCalls} Gemini calls, ${Object.keys(retries).length} waiting for retry.`);
 }
 
@@ -245,7 +250,8 @@ Body: ${email.body}`;
     generationConfig: {
       temperature: 0,
       maxOutputTokens: 200,
-      thinkingConfig: { thinkingBudget: 0 },
+      // Gemini 2.x turns thinking off with a budget, 3.x and later only accept a level.
+      thinkingConfig: /^gemini-2\./.test(cfg.model) ? { thinkingBudget: 0 } : { thinkingLevel: "minimal" },
       responseMimeType: "application/json",
       responseSchema: {
         type: "OBJECT",

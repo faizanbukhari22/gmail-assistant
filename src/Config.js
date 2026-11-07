@@ -9,7 +9,7 @@ const CONFIG = {
   // false = rules only. No email text leaves Gmail, and no Gemini key is needed.
   // Emails the rules cannot resolve get the LABEL_REVIEW label instead.
   USE_AI: true,
-  GEMINI_MODEL: "gemini-2.5-flash-lite",
+  GEMINI_MODEL: "gemini-3.5-flash-lite",
   AI_DELAY_MS: 4000, // pause after each Gemini call, keeps the free tier under its per-minute limit
 
   LABEL_PROCESSED: "AI_Processed",

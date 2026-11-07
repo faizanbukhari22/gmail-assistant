@@ -134,3 +134,24 @@ test("setupNotion adds missing columns and the formula", () => {
   for (const col of ["Type", "Status", "Key", "Times Applied", "Rejected Date"]) assert.ok(t.notion.schema[col], col);
   assert.match(t.notion.schema["Follow Up"].formula.expression, /prop\("Status"\) == "Applied"/);
 });
+
+test("a run that crashes midway keeps its saved progress", () => {
+  const t = load();
+  const names = "Alpha Bravo Delta Echo Golf Hotel India Juliet Kilo Lima Mike Oscar Papa Quebec Romeo Sierra Tango Uniform Victor Whiskey Xray Yankee Zulu Orbit Pixel".split(" ");
+  names.forEach((n, i) => t.email(n, { from: `${n} Recruiting <jobs@${n.toLowerCase()}.io>`,
+    subject: "Thank you for your application for QA Engineer", body: "Received.", hoursAgo: 40 - i }));
+  const fetch = t.ctx.UrlFetchApp.fetch;
+  let created = 0;
+  t.ctx.UrlFetchApp.fetch = (url, opts) => {
+    if (url.endsWith("/pages") && opts.method === "post" && ++created > 22) throw new Error("simulated crash");
+    return fetch(url, opts);
+  };
+  assert.throws(() => t.run("processInbox()"), /simulated crash/);
+  assert.ok(t.props.get("LAST_MESSAGE_TS"), "progress saved after 20 messages");
+
+  t.ctx.UrlFetchApp.fetch = fetch;
+  t.run("processInbox()");
+  const rows = t.rows();
+  assert.equal(rows.length, names.length);
+  assert.ok(rows.every(r => r.timesApplied === 1));
+});
